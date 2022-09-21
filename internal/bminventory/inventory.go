@@ -340,7 +340,80 @@ func (b *bareMetalInventory) setDefaultRegisterClusterParams(ctx context.Context
 		}
 	}
 
+	params.NewClusterParams.NetworkType, err = getDefaultNetworkType(params)
+	if err != nil {
+		log.Error(err)
+		return params, err
+	}
+
 	return params, nil
+}
+
+// If the cluster is SNO, or the IP version is IPv6 (based on ClusterNetworkCidr param), or the OpenShift version >= 4.12,
+// the network type will be set to "OVNKubernetes", otherwise it will be set to "OpenShiftSDN"
+func getDefaultNetworkType(params installer.V2RegisterClusterParams) (*string, error) {
+	// If there is not a network specified already
+	if params.NewClusterParams.NetworkType == nil {
+
+		var (
+			isOpenShiftVersionRecentEnough bool
+			openShiftVersionParam          *version.Version
+		)
+
+		// If an OpenShift version is not specified, we do not assume it is >= 4.12
+		if params.NewClusterParams.OpenshiftVersion == nil {
+			isOpenShiftVersionRecentEnough = false
+		} else {
+			openShiftVersion, err := version.NewVersion(swag.StringValue(params.NewClusterParams.OpenshiftVersion))
+			openShiftVersionParam = openShiftVersion
+			if err != nil {
+				return params.NewClusterParams.NetworkType, err
+			}
+			thresholdVersion, err := version.NewVersion("4.12")
+			if err != nil {
+				return params.NewClusterParams.NetworkType, err
+			}
+			isOpenShiftVersionRecentEnough = openShiftVersionParam.GreaterThanOrEqual(thresholdVersion)
+		}
+
+		isSingleNodeCluster := isSingleNodeCluster(params)
+		isIPv6, err := isIPv6(params.NewClusterParams.ClusterNetworkCidr)
+		if err != nil {
+			return params.NewClusterParams.NetworkType, err
+		}
+		// If one of the conditions match, we will return OVNKubernetes, otherwise OpenShiftSDN
+		if isOpenShiftVersionRecentEnough || isSingleNodeCluster || isIPv6 {
+			return swag.String(models.ClusterCreateParamsNetworkTypeOVNKubernetes), nil
+		} else {
+			return swag.String(models.ClusterCreateParamsNetworkTypeOpenShiftSDN), nil
+		}
+	}
+	return params.NewClusterParams.NetworkType, nil
+}
+
+func isSingleNodeCluster(params installer.V2RegisterClusterParams) bool {
+	if swag.StringValue(params.NewClusterParams.HighAvailabilityMode) == "None" {
+		return true
+	} else {
+		return false
+	}
+}
+
+// returns whether the IP version is IPv6
+func isIPv6(cidr *string) (bool, error) {
+	// if no ClusterNetworkCidr specified, we do not assume nothing of it
+	if cidr == nil {
+		return false, nil
+	}
+	_, _, err := net.ParseCIDR(*cidr)
+	if err != nil {
+		return false, errors.Wrapf(err, "%s is not a valid cidr", *cidr)
+	}
+	if network.IsIPV4CIDR(*cidr) {
+		return false, nil
+	} else {
+		return true, nil
+	}
 }
 
 func (b *bareMetalInventory) validateRegisterClusterInternalParams(params *installer.V2RegisterClusterParams, log logrus.FieldLogger) error {

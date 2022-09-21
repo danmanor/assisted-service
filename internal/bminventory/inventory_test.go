@@ -10029,6 +10029,108 @@ var _ = Describe("TestRegisterCluster", func() {
 			}
 		}
 
+		// Testing the default network type setting during register flow, with various combinations of platforms,
+		// OpenShift version, high availability mode and IP version.
+		// Note: clusters with high availability mode "None" must not have have Platform "baremetal", and OpenShift version > 4.8
+		Context("Default Network Type Setting", func() {
+			It("NetworkType default value", func() {
+				type clusterParamsForTest struct {
+					OpenShiftVersion     *string
+					HighAvailabilityMode *string
+					ClusterNetworkCidr   *string
+					DesiredNetworkType   string
+					Platform             models.Platform
+				}
+
+				tests := []clusterParamsForTest{
+					// OpenShift version >= 4.12, not SNO, IPv4 => OVNKubernetes
+					{
+						OpenShiftVersion:     swag.String("4.12"),
+						HighAvailabilityMode: swag.String("Full"),
+						ClusterNetworkCidr:   swag.String("10.128.0.0/14"),
+						DesiredNetworkType:   models.ClusterCreateParamsNetworkTypeOVNKubernetes,
+						Platform:             models.Platform{Type: models.NewPlatformType(models.PlatformTypeBaremetal)},
+					},
+					// OpenShift version >= 4.12, not SNO, IPv6 => OVNKubernetes
+					{
+						OpenShiftVersion:     swag.String("4.13"),
+						HighAvailabilityMode: swag.String("Full"),
+						ClusterNetworkCidr:   swag.String("fd01::/48"),
+						DesiredNetworkType:   models.ClusterCreateParamsNetworkTypeOVNKubernetes,
+						Platform:             models.Platform{Type: models.NewPlatformType(models.PlatformTypeBaremetal)},
+					},
+					// OpenShift version >= 4.12, SNO, IPv4 => OVNKubernetes
+					{
+						OpenShiftVersion:     swag.String("4.14"),
+						HighAvailabilityMode: swag.String("None"),
+						ClusterNetworkCidr:   swag.String("10.128.0.0/14"),
+						DesiredNetworkType:   models.ClusterCreateParamsNetworkTypeOVNKubernetes,
+						Platform:             models.Platform{Type: models.NewPlatformType(models.PlatformTypeNone)},
+					},
+					// OpenShift version >= 4.12, SNO, IPv6 => OVNKubernetes
+					{
+						OpenShiftVersion:     swag.String("4.15.2"),
+						HighAvailabilityMode: swag.String("None"),
+						ClusterNetworkCidr:   swag.String("fd01::/48"),
+						DesiredNetworkType:   models.ClusterCreateParamsNetworkTypeOVNKubernetes,
+						Platform:             models.Platform{Type: models.NewPlatformType(models.PlatformTypeNone)},
+					},
+					// OpenShift version < 4.12, not SNO, IPv4 => OpenShiftSDN
+					{
+						OpenShiftVersion:     swag.String("4.11"),
+						HighAvailabilityMode: swag.String("Full"),
+						ClusterNetworkCidr:   swag.String("10.128.0.0/14"),
+						DesiredNetworkType:   models.ClusterCreateParamsNetworkTypeOpenShiftSDN,
+						Platform:             models.Platform{Type: models.NewPlatformType(models.PlatformTypeBaremetal)},
+					},
+					// OpenShift version < 4.12, not SNO, IPv6 => OVNKubernetes
+					{
+						OpenShiftVersion:     swag.String("4.10.3"),
+						HighAvailabilityMode: swag.String("Full"),
+						ClusterNetworkCidr:   swag.String("fd01::/48"),
+						DesiredNetworkType:   models.ClusterCreateParamsNetworkTypeOVNKubernetes,
+						Platform:             models.Platform{Type: models.NewPlatformType(models.PlatformTypeBaremetal)},
+					},
+					// OpenShift version < 4.12, SNO, IPv4 => OVNKubernetes
+					{
+						OpenShiftVersion:     swag.String("4.11.17"),
+						HighAvailabilityMode: swag.String("None"),
+						ClusterNetworkCidr:   swag.String("10.128.0.0/14"),
+						DesiredNetworkType:   models.ClusterCreateParamsNetworkTypeOVNKubernetes,
+						Platform:             models.Platform{Type: models.NewPlatformType(models.PlatformTypeNone)},
+					},
+					// OpenShift version < 4.12, SNO, IPv6 => OVNKubernetes
+					{
+						OpenShiftVersion:     swag.String("4.8"),
+						HighAvailabilityMode: swag.String("None"),
+						ClusterNetworkCidr:   swag.String("fd01::/48"),
+						DesiredNetworkType:   models.ClusterCreateParamsNetworkTypeOVNKubernetes,
+						Platform:             models.Platform{Type: models.NewPlatformType(models.PlatformTypeNone)},
+					},
+				}
+
+				for _, t := range tests {
+
+					mockClusterRegisterSuccess(true)
+					mockAMSSubscription(ctx)
+
+					NewClusterParams := getDefaultClusterCreateParams()
+					NewClusterParams.OpenshiftVersion = t.OpenShiftVersion
+					NewClusterParams.HighAvailabilityMode = t.HighAvailabilityMode
+					NewClusterParams.ClusterNetworkCidr = t.ClusterNetworkCidr
+					NewClusterParams.Platform = &t.Platform
+
+					reply := bm.V2RegisterCluster(ctx, installer.V2RegisterClusterParams{
+						NewClusterParams: NewClusterParams,
+					})
+
+					Expect(reply).Should(BeAssignableToTypeOf(installer.NewV2RegisterClusterCreated()))
+					actual := reply.(*installer.V2RegisterClusterCreated).Payload
+					Expect(swag.StringValue(actual.NetworkType)).To(Equal(t.DesiredNetworkType))
+				}
+			})
+		})
+
 		Context("HighAvailabilityMode = High", func() {
 			It("user-managed-networking false", func() {
 				mockClusterRegisterSuccess(true)
