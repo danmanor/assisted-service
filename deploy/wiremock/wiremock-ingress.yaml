@@ -1,0 +1,19 @@
+kind: Ingress
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: wiremock
+  namespace: REPLACE_NAMESPACE
+  annotations:
+    haproxy.router.openshift.io/timeout: 120s
+spec:
+  rules:
+    - host: REPLACE_HOSTNAME
+      http:
+        paths:
+          - path: "/__admin/mappings"
+            pathType: Prefix
+            backend:
+              service:
+                name: wiremock
+                port:
+                  number: 8080

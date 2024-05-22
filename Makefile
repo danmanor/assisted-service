@@ -57,16 +57,6 @@ else
 	UPDATE_IMAGE=update-minimal
 endif
 
-ifdef SUBSYSTEM_LOCAL_REGISTRY
-	UPDATE_LOCAL_SERVICE=_update-private-registry-image
-	LOCAL_SERVICE_IMAGE=${SUBSYSTEM_LOCAL_REGISTRY}/assisted-service:${ASSISTED_TAG}
-	IMAGE_PULL_POLICY=--image-pull-policy Always
-else
-	IMAGE_PULL_POLICY=--image-pull-policy IfNotPresent
-	UPDATE_LOCAL_SERVICE=_update-local-k8s-image
-	LOCAL_SERVICE_IMAGE=${SERVICE}
-endif
-
 CONTAINER_BUILD_PARAMS = --network=host --label git_revision=${GIT_REVISION} ${CONTAINER_BUILD_EXTRA_PARAMS}
 
 MUST_GATHER_IMAGES := $(or ${MUST_GATHER_IMAGES}, $(shell (tr -d '\n\t ' < ${ROOT_DIR}/data/default_must_gather_versions.json)))
@@ -238,16 +228,9 @@ update-debug-minimal:
 
 update-image: $(UPDATE_IMAGE)
 
-_update-private-registry-image: update-image
-	$(CONTAINER_COMMAND) tag $(SERVICE) $(LOCAL_SERVICE_IMAGE)
-	$(CONTAINER_COMMAND) push $(PUSH_FLAGS) $(LOCAL_SERVICE_IMAGE)
-
-_update-local-k8s-image:
-	# Temporary hack that updates the local k8s(e.g minikube) with the latest image.
-	# Should be replaced after installing a local registry
-	./hack/update_local_image.sh
-
-update-local-image: $(UPDATE_LOCAL_SERVICE)
+load-image: update-image
+	$(CONTAINER_COMMAND) save -o build/assisted_service_image.tar $(SERVICE)
+	kind load image-archive build/assisted_service_image.tar
 
 build-image: update-minimal
 
@@ -394,9 +377,9 @@ ifdef DEBUG_SERVICE
 endif
 	$(call restart_service_pods)
 
-deploy-test: _verify_cluster generate-keys update-local-image
+deploy-test: _verify_cluster generate-keys load-image
 	-$(KUBECTL) delete deployments.apps assisted-service &> /dev/null
-	export SERVICE=${LOCAL_SERVICE_IMAGE} && export TEST_FLAGS=--subsystem-test && \
+	export TEST_FLAGS=--subsystem-test && \
 	export AUTH_TYPE="rhsso" && export DUMMY_IGNITION="True" && \
 	export IPV6_SUPPORT="True" && ENABLE_ORG_TENANCY="True" && ENABLE_ORG_BASED_FEATURE_GATES="True" && \
 	export RELEASE_SOURCES='$(or ${RELEASE_SOURCES},${DEFAULT_RELEASE_SOURCES})' && \
@@ -432,7 +415,7 @@ test:
 	$(MAKE) _run_subsystem_test AUTH_TYPE=rhsso ENABLE_ORG_TENANCY=true ENABLE_ORG_BASED_FEATURE_GATES=true
 
 test-kube-api:
-	$(MAKE) _run_subsystem_test AUTH_TYPE=local ENABLE_KUBE_API=true FOCUS="$(or ${FOCUS},kube-api)"
+	$(MAKE) _run_subsystem_test AUTH_TYPE=local ENABLE_KUBE_API=true FOCUS="$(or ${FOCUS},kube-api)" 
 
 # An alias for the test target
 subsystem-test: test
@@ -441,10 +424,21 @@ subsystem-test: test
 subsystem-test-kube-api: test-kube-api
 
 _run_subsystem_test:
-	INVENTORY=$(shell $(call get_service_host_port,assisted-service) | sed 's/http:\/\///g') \
-	DB_HOST=$(shell $(call get_service_host_port,postgres) | sed 's/http:\/\///g' | cut -d ":" -f 1) \
-	DB_PORT=$(shell $(call get_service_host_port,postgres) | sed 's/http:\/\///g' | cut -d ":" -f 2) \
-	OCM_HOST=$(shell $(call get_service_host_port,wiremock) | sed 's/http:\/\///g') \
+	if [[ $(TARGET) == "kind" ]]; then \
+		assisted_service_url="${HOSTNAME}:80"; \
+		db_host="localhost"; \
+		db_port="5432"; \
+		ocm_host="${HOSTNAME}:80"; \
+	else \
+		assisted_service_url="$(shell $(call get_service_host_port,assisted-service) | sed 's/http:\/\///g')"; \
+		db_host="$(shell $(call get_service_host_port,postgres) | sed 's/http:\/\///g' | cut -d ":" -f 1)"; \
+		db_port="$(shell $(call get_service_host_port,postgres) | sed 's/http:\/\///g' | cut -d ":" -f 2)"; \
+		ocm_host="$(shell $(call get_service_host_port,wiremock) | sed 's/http:\/\///g')"; \
+	fi; \
+	INVENTORY=$$assisted_service_url \
+	DB_HOST=$$db_host \
+	DB_PORT=$$db_port \
+	OCM_HOST=$$ocm_host \
 	TEST_TOKEN="$(shell cat $(BUILD_FOLDER)/auth-tokenString)" \
 	TEST_TOKEN_2="$(shell cat $(BUILD_FOLDER)/auth-tokenString2)" \
 	TEST_TOKEN_ADMIN="$(shell cat $(BUILD_FOLDER)/auth-tokenAdminString)" \
@@ -461,9 +455,6 @@ enable-kube-api-for-subsystem: $(BUILD_FOLDER)
 
 deploy-wiremock: deploy-namespace
 	python3 ./tools/deploy_wiremock.py --target $(TARGET) --namespace "$(NAMESPACE)"
-	timeout 5m ./hack/wait_for_wiremock.sh
-	OCM_URL=$$(kubectl get service wiremock -n $(NAMESPACE) -ojson | jq --from-file ./hack/k8s_service_host_port.jq --raw-output); \
-	export OCM_URL && go run ./hack/add_wiremock_stubs.go
 
 deploy-olm: deploy-namespace
 	python3 ./tools/deploy_olm.py --target $(TARGET)
@@ -568,3 +559,17 @@ operator-bundle-build: generate-bundle
 
 operator-index-build:
 	opm index add --bundles $(BUNDLE_IMAGE) --tag $(INDEX_IMAGE) --container-tool $(CONTAINER_COMMAND)
+
+install-kind-if-needed:
+	./hack/kind/kind.sh install
+
+delete-kind-cluster: install-kind-if-needed
+	kind delete cluster
+
+create-hub-cluster: install-kind-if-needed
+	./hack/kind/kind.sh create
+
+subsystem-tests: create-hub-cluster
+	pip install waiting strato-skipper
+	$(MAKE) deploy-service-for-subsystem-test TARGET=kind SERVICE=localhost/assisted-service:latest
+	$(MAKE) subsystem-test HOSTNAME=$(shell hostname) TARGET=kind
