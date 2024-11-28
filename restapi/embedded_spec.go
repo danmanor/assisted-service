@@ -3081,7 +3081,7 @@ func init() {
           {
             "type": "string",
             "format": "uuid",
-            "description": "A host in the specified cluster to return events for (DEPRECATED. Use ` + "`" + `host_ids` + "`" + ` instead).",
+            "description": "A host in the specified cluster to return events for (DEPRECATED). Use ` + "`" + `host_ids` + "`" + ` instead).",
             "name": "host_id",
             "in": "query"
           },
@@ -6281,7 +6281,7 @@ func init() {
           "x-go-custom-tag": "gorm:\"type:text\""
         },
         "high_availability_mode": {
-          "description": "Guaranteed availability of the installed cluster. 'Full' installs a Highly-Available cluster\nover multiple master nodes whereas 'None' installs a full cluster over one node.\n",
+          "description": "(DEPRECATED) Guaranteed availability of the installed cluster. 'Full' installs a Highly-Available cluster\nover multiple master nodes whereas 'None' installs a full cluster over one node.\n",
           "type": "string",
           "default": "Full",
           "enum": [
@@ -6650,7 +6650,7 @@ func init() {
           "$ref": "#/definitions/disk-encryption"
         },
         "high_availability_mode": {
-          "description": "Guaranteed availability of the installed cluster. 'Full' installs a Highly-Available cluster\nover multiple master nodes whereas 'None' installs a full cluster over one node.\n",
+          "description": "(DEPRECATED) Guaranteed availability of the installed cluster. 'Full' installs a Highly-Available cluster\nover multiple master nodes whereas 'None' installs a full cluster over one node.\n",
           "type": "string",
           "default": "Full",
           "enum": [
@@ -8974,7 +8974,7 @@ func init() {
           "type": "boolean"
         },
         "high_availability_mode": {
-          "description": "Guaranteed availability of the installed cluster. 'Full' installs a Highly-Available cluster\nover multiple master nodes whereas 'None' installs a full cluster over one node.\n",
+          "description": "(DEPRECATED) Guaranteed availability of the installed cluster. 'Full' installs a Highly-Available cluster\nover multiple master nodes whereas 'None' installs a full cluster over one node.\n",
           "type": "string",
           "default": "Full",
           "enum": [
@@ -13865,7 +13865,7 @@ func init() {
           {
             "type": "string",
             "format": "uuid",
-            "description": "A host in the specified cluster to return events for (DEPRECATED. Use ` + "`" + `host_ids` + "`" + ` instead).",
+            "description": "A host in the specified cluster to return events for (DEPRECATED). Use ` + "`" + `host_ids` + "`" + ` instead).",
             "name": "host_id",
             "in": "query"
           },
@@ -17188,7 +17188,7 @@ func init() {
           "x-go-custom-tag": "gorm:\"type:text\""
         },
         "high_availability_mode": {
-          "description": "Guaranteed availability of the installed cluster. 'Full' installs a Highly-Available cluster\nover multiple master nodes whereas 'None' installs a full cluster over one node.\n",
+          "description": "(DEPRECATED) Guaranteed availability of the installed cluster. 'Full' installs a Highly-Available cluster\nover multiple master nodes whereas 'None' installs a full cluster over one node.\n",
           "type": "string",
           "default": "Full",
           "enum": [
@@ -17557,7 +17557,7 @@ func init() {
           "$ref": "#/definitions/disk-encryption"
         },
         "high_availability_mode": {
-          "description": "Guaranteed availability of the installed cluster. 'Full' installs a Highly-Available cluster\nover multiple master nodes whereas 'None' installs a full cluster over one node.\n",
+          "description": "(DEPRECATED) Guaranteed availability of the installed cluster. 'Full' installs a Highly-Available cluster\nover multiple master nodes whereas 'None' installs a full cluster over one node.\n",
           "type": "string",
           "default": "Full",
           "enum": [
@@ -19850,7 +19850,7 @@ func init() {
           "type": "boolean"
         },
         "high_availability_mode": {
-          "description": "Guaranteed availability of the installed cluster. 'Full' installs a Highly-Available cluster\nover multiple master nodes whereas 'None' installs a full cluster over one node.\n",
+          "description": "(DEPRECATED) Guaranteed availability of the installed cluster. 'Full' installs a Highly-Available cluster\nover multiple master nodes whereas 'None' installs a full cluster over one node.\n",
           "type": "string",
           "default": "Full",
           "enum": [

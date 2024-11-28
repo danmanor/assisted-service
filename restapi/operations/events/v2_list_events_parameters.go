@@ -57,7 +57,7 @@ type V2ListEventsParams struct {
 	  In: query
 	*/
 	DeletedHosts *bool
-	/*A host in the specified cluster to return events for (DEPRECATED. Use `host_ids` instead).
+	/*A host in the specified cluster to return events for (DEPRECATED). Use `host_ids` instead).
 	  In: query
 	*/
 	HostID *strfmt.UUID

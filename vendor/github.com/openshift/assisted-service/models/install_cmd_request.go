@@ -44,7 +44,7 @@ type InstallCmdRequest struct {
 	// If true, assisted service will attempt to skip MCO reboot
 	EnableSkipMcoReboot bool `json:"enable_skip_mco_reboot,omitempty"`
 
-	// Guaranteed availability of the installed cluster. 'Full' installs a Highly-Available cluster
+	// (DEPRECATED) Guaranteed availability of the installed cluster. 'Full' installs a Highly-Available cluster
 	// over multiple master nodes whereas 'None' installs a full cluster over one node.
 	//
 	// Enum: [Full None]

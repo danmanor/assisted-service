@@ -85,7 +85,7 @@ type Cluster struct {
 	// JSON-formatted string containing the usage information by feature name
 	FeatureUsage string `json:"feature_usage,omitempty" gorm:"type:text"`
 
-	// Guaranteed availability of the installed cluster. 'Full' installs a Highly-Available cluster
+	// (DEPRECATED) Guaranteed availability of the installed cluster. 'Full' installs a Highly-Available cluster
 	// over multiple master nodes whereas 'None' installs a full cluster over one node.
 	//
 	// Enum: [Full None]

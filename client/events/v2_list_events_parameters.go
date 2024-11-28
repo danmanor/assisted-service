@@ -90,7 +90,7 @@ type V2ListEventsParams struct {
 
 	/* HostID.
 
-	   A host in the specified cluster to return events for (DEPRECATED. Use `host_ids` instead).
+	   A host in the specified cluster to return events for (DEPRECATED). Use `host_ids` instead).
 
 	   Format: uuid
 	*/
